@@ -1,0 +1,46 @@
+<h2>Create New Ward (Template-Driven)</h2>
+
+<form #wardForm="ngForm" (ngSubmit)="onSubmit(wardForm)">
+
+  <div class="form-group">
+    <label for="ward_name">Ward Name</label>
+    <input 
+      type="text" 
+      id="ward_name" 
+      class="form-control"
+      name="ward_name"
+      [(ngModel)]="model.ward_name"
+      #wardName="ngModel"
+      required
+      maxlength="50">
+  </div>
+
+  <div class="form-group">
+    <label for="ward_type">Ward Type</label>
+    <select 
+      id="ward_type" 
+      class="form-control"
+      name="ward_type"
+      [(ngModel)]="model.ward_type"
+      #wardType="ngModel"
+      required>
+      <option value="" disabled>Select a ward type</option>
+      <option *ngFor="let type of wardTypes" [value]="type">{{ type }}</option>
+    </select>   
+  </div>
+
+  <div class="form-group">
+    <label for="floor_number">Floor Number (Optional)</label>
+    <input 
+      type="number" 
+      id="floor_number" 
+      class="form-control"
+      name="floor_number"
+      [(ngModel)]="model.floor_number">
+  </div>
+  
+  <br>
+
+  <button type="submit" class="btn btn-primary" [disabled]="!wardForm.form.valid">Submit</button>
+
+</form>
