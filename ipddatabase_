@@ -1,0 +1,362 @@
+-- --------------------------------------------------------
+-- Host:                         127.0.0.1
+-- Server version:               8.0.40 - MySQL Community Server - GPL
+-- Server OS:                    Win64
+-- HeidiSQL Version:             12.11.0.7065
+-- --------------------------------------------------------
+
+/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
+/*!40101 SET NAMES utf8 */;
+/*!50503 SET NAMES utf8mb4 */;
+/*!40103 SET @OLD_TIME_ZONE=@@TIME_ZONE */;
+/*!40103 SET TIME_ZONE='+00:00' */;
+/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
+/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
+/*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
+
+
+-- Dumping database structure for ipd
+CREATE DATABASE IF NOT EXISTS `ipd` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */;
+USE `ipd`;
+
+-- Dumping structure for table ipd.admissions
+CREATE TABLE IF NOT EXISTS `admissions` (
+  `admission_id` int NOT NULL AUTO_INCREMENT,
+  `patient_id` int NOT NULL,
+  `admitting_doctor_id` int NOT NULL,
+  `bed_id` int NOT NULL,
+  `admission_date` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `discharge_date` datetime DEFAULT NULL,
+  `reason_for_admission` text NOT NULL,
+  `status` enum('Admitted','Discharged','Transferred') NOT NULL DEFAULT 'Admitted',
+  PRIMARY KEY (`admission_id`),
+  KEY `patient_id` (`patient_id`),
+  KEY `admitting_doctor_id` (`admitting_doctor_id`),
+  KEY `bed_id` (`bed_id`),
+  CONSTRAINT `admissions_ibfk_1` FOREIGN KEY (`patient_id`) REFERENCES `patients` (`patient_id`) ON DELETE RESTRICT,
+  CONSTRAINT `admissions_ibfk_2` FOREIGN KEY (`admitting_doctor_id`) REFERENCES `doctors` (`doctor_id`) ON DELETE RESTRICT,
+  CONSTRAINT `admissions_ibfk_3` FOREIGN KEY (`bed_id`) REFERENCES `beds` (`bed_id`) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- Dumping data for table ipd.admissions: ~0 rows (approximately)
+
+-- Dumping structure for table ipd.beds
+CREATE TABLE IF NOT EXISTS `beds` (
+  `bed_id` int NOT NULL AUTO_INCREMENT,
+  `bed_number` varchar(20) NOT NULL,
+  `ward_id` int NOT NULL,
+  `is_occupied` tinyint(1) NOT NULL DEFAULT '0',
+  PRIMARY KEY (`bed_id`),
+  UNIQUE KEY `uq_ward_bed` (`ward_id`,`bed_number`),
+  CONSTRAINT `beds_ibfk_1` FOREIGN KEY (`ward_id`) REFERENCES `wards` (`ward_id`) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- Dumping data for table ipd.beds: ~0 rows (approximately)
+
+-- Dumping structure for table ipd.billing
+CREATE TABLE IF NOT EXISTS `billing` (
+  `bill_id` int NOT NULL AUTO_INCREMENT,
+  `admission_id` int NOT NULL,
+  `bill_date` date NOT NULL,
+  `total_amount` decimal(10,2) NOT NULL DEFAULT '0.00',
+  `amount_paid` decimal(10,2) NOT NULL DEFAULT '0.00',
+  `payment_status` enum('Unpaid','Partially Paid','Paid') NOT NULL DEFAULT 'Unpaid',
+  PRIMARY KEY (`bill_id`),
+  KEY `admission_id` (`admission_id`),
+  CONSTRAINT `billing_ibfk_1` FOREIGN KEY (`admission_id`) REFERENCES `admissions` (`admission_id`) ON DELETE RESTRICT,
+  CONSTRAINT `billing_chk_1` CHECK ((`amount_paid` <= `total_amount`))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- Dumping data for table ipd.billing: ~0 rows (approximately)
+
+-- Dumping structure for table ipd.billitems
+CREATE TABLE IF NOT EXISTS `billitems` (
+  `item_id` int NOT NULL AUTO_INCREMENT,
+  `bill_id` int NOT NULL,
+  `item_description` varchar(255) NOT NULL,
+  `item_cost` decimal(10,2) NOT NULL,
+  `quantity` int NOT NULL DEFAULT '1',
+  `item_date` date NOT NULL,
+  PRIMARY KEY (`item_id`),
+  KEY `bill_id` (`bill_id`),
+  CONSTRAINT `billitems_ibfk_1` FOREIGN KEY (`bill_id`) REFERENCES `billing` (`bill_id`) ON DELETE CASCADE,
+  CONSTRAINT `billitems_chk_1` CHECK (((`item_cost` >= 0) and (`quantity` > 0)))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- Dumping data for table ipd.billitems: ~0 rows (approximately)
+
+-- Dumping structure for table ipd.dischargesummary
+CREATE TABLE IF NOT EXISTS `dischargesummary` (
+  `summary_id` int NOT NULL AUTO_INCREMENT,
+  `admission_id` int NOT NULL,
+  `discharging_staff_id` int NOT NULL,
+  `summary_date` date NOT NULL,
+  `final_diagnosis` text NOT NULL,
+  `treatment_provided_summary` text NOT NULL,
+  `follow_up_instructions` text,
+  PRIMARY KEY (`summary_id`),
+  UNIQUE KEY `admission_id` (`admission_id`),
+  KEY `discharging_staff_id` (`discharging_staff_id`),
+  CONSTRAINT `dischargesummary_ibfk_1` FOREIGN KEY (`admission_id`) REFERENCES `admissions` (`admission_id`) ON DELETE RESTRICT,
+  CONSTRAINT `dischargesummary_ibfk_2` FOREIGN KEY (`discharging_staff_id`) REFERENCES `staff` (`staff_id`) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- Dumping data for table ipd.dischargesummary: ~0 rows (approximately)
+
+-- Dumping structure for table ipd.doctors
+CREATE TABLE IF NOT EXISTS `doctors` (
+  `doctor_id` int NOT NULL AUTO_INCREMENT,
+  `first_name` varchar(50) NOT NULL,
+  `last_name` varchar(50) NOT NULL,
+  `specialization` varchar(100) NOT NULL,
+  `license_number` varchar(50) NOT NULL,
+  `contact_number` varchar(15) NOT NULL,
+  `email` varchar(100) NOT NULL,
+  `hire_date` date NOT NULL,
+  `is_active` tinyint(1) NOT NULL DEFAULT '1',
+  PRIMARY KEY (`doctor_id`),
+  UNIQUE KEY `license_number` (`license_number`),
+  UNIQUE KEY `contact_number` (`contact_number`),
+  UNIQUE KEY `email` (`email`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- Dumping data for table ipd.doctors: ~0 rows (approximately)
+
+-- Dumping structure for table ipd.insurancedetails
+CREATE TABLE IF NOT EXISTS `insurancedetails` (
+  `insurance_id` int NOT NULL AUTO_INCREMENT,
+  `patient_id` int NOT NULL,
+  `provider_name` varchar(100) NOT NULL,
+  `policy_number` varchar(100) NOT NULL,
+  `valid_until` date NOT NULL,
+  `coverage_amount` decimal(12,2) NOT NULL,
+  PRIMARY KEY (`insurance_id`),
+  UNIQUE KEY `patient_id` (`patient_id`),
+  UNIQUE KEY `policy_number` (`policy_number`),
+  CONSTRAINT `insurancedetails_ibfk_1` FOREIGN KEY (`patient_id`) REFERENCES `patients` (`patient_id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- Dumping data for table ipd.insurancedetails: ~0 rows (approximately)
+
+-- Dumping structure for table ipd.labtestresults
+CREATE TABLE IF NOT EXISTS `labtestresults` (
+  `result_id` int NOT NULL AUTO_INCREMENT,
+  `admission_id` int NOT NULL,
+  `test_id` int NOT NULL,
+  `ordered_by_staff_id` int NOT NULL,
+  `sample_collected_datetime` datetime DEFAULT NULL,
+  `result_datetime` datetime DEFAULT NULL,
+  `result_value` text,
+  `notes` text,
+  `status` enum('Ordered','Sample Collected','Processing','Completed','Cancelled') NOT NULL DEFAULT 'Ordered',
+  PRIMARY KEY (`result_id`),
+  KEY `admission_id` (`admission_id`),
+  KEY `test_id` (`test_id`),
+  KEY `ordered_by_staff_id` (`ordered_by_staff_id`),
+  CONSTRAINT `labtestresults_ibfk_1` FOREIGN KEY (`admission_id`) REFERENCES `admissions` (`admission_id`) ON DELETE CASCADE,
+  CONSTRAINT `labtestresults_ibfk_2` FOREIGN KEY (`test_id`) REFERENCES `labtests` (`test_id`) ON DELETE RESTRICT,
+  CONSTRAINT `labtestresults_ibfk_3` FOREIGN KEY (`ordered_by_staff_id`) REFERENCES `staff` (`staff_id`) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- Dumping data for table ipd.labtestresults: ~0 rows (approximately)
+
+-- Dumping structure for table ipd.labtests
+CREATE TABLE IF NOT EXISTS `labtests` (
+  `test_id` int NOT NULL AUTO_INCREMENT,
+  `test_name` varchar(150) NOT NULL,
+  `department` varchar(50) NOT NULL COMMENT 'e.g., Pathology, Radiology',
+  `normal_range` varchar(255) DEFAULT NULL COMMENT 'e.g., 13.5-17.5 g/dL',
+  `cost` decimal(8,2) NOT NULL,
+  PRIMARY KEY (`test_id`),
+  UNIQUE KEY `test_name` (`test_name`),
+  CONSTRAINT `labtests_chk_1` CHECK ((`cost` >= 0))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- Dumping data for table ipd.labtests: ~0 rows (approximately)
+
+-- Dumping structure for table ipd.medicalrecords
+CREATE TABLE IF NOT EXISTS `medicalrecords` (
+  `record_id` int NOT NULL AUTO_INCREMENT,
+  `admission_id` int NOT NULL,
+  `recorded_by_doctor_id` int NOT NULL,
+  `record_datetime` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `record_type` enum('Vitals','NurseNote','DoctorNote','TestResult') NOT NULL,
+  `description` text NOT NULL,
+  `temperature_celsius` decimal(4,1) DEFAULT NULL,
+  `bp_systolic` int DEFAULT NULL,
+  `bp_diastolic` int DEFAULT NULL,
+  `heart_rate_bpm` int DEFAULT NULL,
+  PRIMARY KEY (`record_id`),
+  KEY `admission_id` (`admission_id`),
+  KEY `recorded_by_doctor_id` (`recorded_by_doctor_id`),
+  CONSTRAINT `medicalrecords_ibfk_1` FOREIGN KEY (`admission_id`) REFERENCES `admissions` (`admission_id`) ON DELETE CASCADE,
+  CONSTRAINT `medicalrecords_ibfk_2` FOREIGN KEY (`recorded_by_doctor_id`) REFERENCES `doctors` (`doctor_id`) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- Dumping data for table ipd.medicalrecords: ~0 rows (approximately)
+
+-- Dumping structure for table ipd.medications
+CREATE TABLE IF NOT EXISTS `medications` (
+  `medication_id` int NOT NULL AUTO_INCREMENT,
+  `brand_name` varchar(100) NOT NULL,
+  `generic_name` varchar(100) NOT NULL,
+  `manufacturer` varchar(100) DEFAULT NULL,
+  `stock_quantity` int NOT NULL DEFAULT '0',
+  `unit_of_measure` varchar(20) NOT NULL COMMENT 'e.g., mg, ml, tablet',
+  `unit_price` decimal(8,2) NOT NULL,
+  PRIMARY KEY (`medication_id`),
+  KEY `idx_medication_name` (`generic_name`),
+  CONSTRAINT `medications_chk_1` CHECK (((`stock_quantity` >= 0) and (`unit_price` >= 0)))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- Dumping data for table ipd.medications: ~0 rows (approximately)
+
+-- Dumping structure for table ipd.patients
+CREATE TABLE IF NOT EXISTS `patients` (
+  `patient_id` int NOT NULL AUTO_INCREMENT,
+  `first_name` varchar(50) NOT NULL,
+  `last_name` varchar(50) NOT NULL,
+  `date_of_birth` date NOT NULL,
+  `gender` enum('Male','Female','Other') NOT NULL,
+  `blood_group` enum('A+','A-','B+','B-','AB+','AB-','O+','O-') DEFAULT NULL,
+  `contact_number` varchar(15) NOT NULL,
+  `email` varchar(100) DEFAULT NULL,
+  `address` text,
+  `city` varchar(50) DEFAULT NULL,
+  `state` varchar(50) DEFAULT NULL,
+  `postal_code` varchar(10) DEFAULT NULL,
+  `emergency_contact_name` varchar(100) NOT NULL,
+  `emergency_contact_relation` varchar(50) NOT NULL,
+  `emergency_contact_number` varchar(15) NOT NULL,
+  `registration_date` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`patient_id`),
+  UNIQUE KEY `contact_number` (`contact_number`),
+  UNIQUE KEY `email` (`email`),
+  KEY `idx_patient_name` (`last_name`,`first_name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- Dumping data for table ipd.patients: ~0 rows (approximately)
+
+-- Dumping structure for table ipd.patienttransfers
+CREATE TABLE IF NOT EXISTS `patienttransfers` (
+  `transfer_id` int NOT NULL AUTO_INCREMENT,
+  `admission_id` int NOT NULL,
+  `from_bed_id` int DEFAULT NULL,
+  `to_bed_id` int NOT NULL,
+  `transfer_datetime` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `reason` text,
+  PRIMARY KEY (`transfer_id`),
+  KEY `admission_id` (`admission_id`),
+  KEY `from_bed_id` (`from_bed_id`),
+  KEY `to_bed_id` (`to_bed_id`),
+  CONSTRAINT `patienttransfers_ibfk_1` FOREIGN KEY (`admission_id`) REFERENCES `admissions` (`admission_id`) ON DELETE CASCADE,
+  CONSTRAINT `patienttransfers_ibfk_2` FOREIGN KEY (`from_bed_id`) REFERENCES `beds` (`bed_id`) ON DELETE SET NULL,
+  CONSTRAINT `patienttransfers_ibfk_3` FOREIGN KEY (`to_bed_id`) REFERENCES `beds` (`bed_id`) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- Dumping data for table ipd.patienttransfers: ~0 rows (approximately)
+
+-- Dumping structure for table ipd.prescriptions
+CREATE TABLE IF NOT EXISTS `prescriptions` (
+  `prescription_id` int NOT NULL AUTO_INCREMENT,
+  `admission_id` int NOT NULL,
+  `staff_id` int NOT NULL COMMENT 'ID of the prescribing doctor/staff',
+  `medication_id` int NOT NULL,
+  `dosage` varchar(100) NOT NULL COMMENT 'e.g., 500mg, 1 tablet',
+  `frequency` varchar(100) NOT NULL COMMENT 'e.g., Twice a day, Every 4 hours',
+  `start_date` datetime NOT NULL,
+  `end_date` datetime DEFAULT NULL,
+  `prescription_status` enum('Active','Completed','Cancelled') NOT NULL DEFAULT 'Active',
+  PRIMARY KEY (`prescription_id`),
+  KEY `admission_id` (`admission_id`),
+  KEY `staff_id` (`staff_id`),
+  KEY `medication_id` (`medication_id`),
+  CONSTRAINT `prescriptions_ibfk_1` FOREIGN KEY (`admission_id`) REFERENCES `admissions` (`admission_id`) ON DELETE CASCADE,
+  CONSTRAINT `prescriptions_ibfk_2` FOREIGN KEY (`staff_id`) REFERENCES `staff` (`staff_id`) ON DELETE RESTRICT,
+  CONSTRAINT `prescriptions_ibfk_3` FOREIGN KEY (`medication_id`) REFERENCES `medications` (`medication_id`) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- Dumping data for table ipd.prescriptions: ~0 rows (approximately)
+
+-- Dumping structure for table ipd.roles
+CREATE TABLE IF NOT EXISTS `roles` (
+  `role_id` int NOT NULL AUTO_INCREMENT,
+  `role_name` varchar(50) NOT NULL,
+  `role_description` text,
+  PRIMARY KEY (`role_id`),
+  UNIQUE KEY `role_name` (`role_name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- Dumping data for table ipd.roles: ~0 rows (approximately)
+
+-- Dumping structure for table ipd.staff
+CREATE TABLE IF NOT EXISTS `staff` (
+  `staff_id` int NOT NULL AUTO_INCREMENT,
+  `role_id` int NOT NULL,
+  `first_name` varchar(50) NOT NULL,
+  `last_name` varchar(50) NOT NULL,
+  `contact_number` varchar(15) NOT NULL,
+  `email` varchar(100) NOT NULL,
+  `hire_date` date NOT NULL,
+  `is_active` tinyint(1) NOT NULL DEFAULT '1',
+  PRIMARY KEY (`staff_id`),
+  UNIQUE KEY `contact_number` (`contact_number`),
+  UNIQUE KEY `email` (`email`),
+  KEY `role_id` (`role_id`),
+  CONSTRAINT `staff_ibfk_1` FOREIGN KEY (`role_id`) REFERENCES `roles` (`role_id`) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- Dumping data for table ipd.staff: ~0 rows (approximately)
+
+-- Dumping structure for table ipd.user
+CREATE TABLE IF NOT EXISTS `user` (
+  `userid` int NOT NULL AUTO_INCREMENT,
+  `username` varchar(30) DEFAULT NULL,
+  PRIMARY KEY (`userid`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- Dumping data for table ipd.user: ~0 rows (approximately)
+
+-- Dumping structure for table ipd.wards
+CREATE TABLE IF NOT EXISTS `wards` (
+  `ward_id` int NOT NULL AUTO_INCREMENT,
+  `ward_name` varchar(50) NOT NULL,
+  `ward_type` enum('General','ICU','Pediatric','Maternity') NOT NULL,
+  `floor_number` int DEFAULT NULL,
+  PRIMARY KEY (`ward_id`),
+  UNIQUE KEY `ward_name` (`ward_name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- Dumping data for table ipd.wards: ~0 rows (approximately)
+
+-- Dumping structure for trigger ipd.trg_check_dob_before_insert
+SET @OLDTMP_SQL_MODE=@@SQL_MODE, SQL_MODE='ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION';
+DELIMITER //
+CREATE TRIGGER `trg_check_dob_before_insert` BEFORE INSERT ON `patients` FOR EACH ROW BEGIN
+    IF NEW.date_of_birth >= CURDATE() THEN
+        -- Throws a custom error to stop the insertion
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Error: Date of birth must be in the past.';
+    END IF;
+END//
+DELIMITER ;
+SET SQL_MODE=@OLDTMP_SQL_MODE;
+
+-- Dumping structure for trigger ipd.trg_check_dob_before_update
+SET @OLDTMP_SQL_MODE=@@SQL_MODE, SQL_MODE='ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION';
+DELIMITER //
+CREATE TRIGGER `trg_check_dob_before_update` BEFORE UPDATE ON `patients` FOR EACH ROW BEGIN
+    IF NEW.date_of_birth >= CURDATE() THEN
+        -- Throws a custom error to stop the update
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Error: Date of birth must be in the past.';
+    END IF;
+END//
+DELIMITER ;
+SET SQL_MODE=@OLDTMP_SQL_MODE;
+
+/*!40103 SET TIME_ZONE=IFNULL(@OLD_TIME_ZONE, 'system') */;
+/*!40101 SET SQL_MODE=IFNULL(@OLD_SQL_MODE, '') */;
+/*!40014 SET FOREIGN_KEY_CHECKS=IFNULL(@OLD_FOREIGN_KEY_CHECKS, 1) */;
+/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
+/*!40111 SET SQL_NOTES=IFNULL(@OLD_SQL_NOTES, 1) */;
